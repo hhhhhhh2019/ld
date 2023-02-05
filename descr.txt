@@ -1,0 +1,17 @@
+func.elf:
+	%global func
+
+	func:
+		sum b0 b1 b2
+	ret
+
+
+main.elf:
+	%extern func
+	%global start
+
+	start:
+		mov b1 1
+		mov b2 2
+		call func
+	hlt
