@@ -1,11 +1,14 @@
 #include <elf.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 
 char *output_path = "a.out";
 int *input_path;
 int input_count = 0;
+unsigned long offset = 0;
+
 
 
 ELF *out_elf;
@@ -23,6 +26,9 @@ Addr_sec_elem *addrs;
 unsigned long addrs_count = 0;
 
 
+void print_help();
+
+
 int main(int argc, char *argv[]) {
 	input_path = malloc(0);
 	code_data = malloc(0);
@@ -30,8 +36,12 @@ int main(int argc, char *argv[]) {
 	addrs = malloc(0);
 
 	for (int i = 1; i < argc; i++) {
-		if (strcmp(argv[i], "-o") == 0) {
+		if (strcmp(argv[i], "-h\0") == 0 || strcmp(argv[i], "--help\0") == 0) {
+			print_help();
+		} else if (strcmp(argv[i], "-o\0") == 0 || strcmp(argv[i], "--output\0") == 0) {
 			output_path = argv[++i];
+		} else if (strcmp(argv[i], "-t\0") == 0 || strcmp(argv[i], "--help\0") == 0) {
+			offset = scanf("%d", argv[++i]);
 		} else {
 			input_path = realloc(input_path, sizeof(input_path) + 8);
 			input_path[input_count++] = i;
@@ -189,12 +199,12 @@ int main(int argc, char *argv[]) {
 		}
 
 		for (int j = 0; j < 8; j++) {
-			code_data[j + addrs[i].offset] = names[nid].offset >> (j << 3) & 0xff;
+			code_data[j + addrs[i].offset] = (names[nid].offset + offset) >> (j << 3) & 0xff;
 		}
 	}
 
 
-	out_elf = malloc(sizeof(ELF));
+	out_elf = calloc(sizeof(ELF), 1);
 	out_code = malloc(sizeof(Code_sec) + code_size);
 	out_name = malloc(sizeof(Name_sec) + names_count * sizeof(Name_sec_elem));
 	out_addr = malloc(sizeof(Addr_sec) + addrs_count * sizeof(Addr_sec_elem));
@@ -212,9 +222,12 @@ int main(int argc, char *argv[]) {
 	out_elf->version = 1;
 	out_elf->type = TYPE_EXEC;
 	out_elf->entry = 0;
-	out_elf->code_entry = sizeof(ELF);
-	out_elf->name_entry = out_elf->code_entry + out_code->size;
-	out_elf->addr_entry = out_elf->name_entry + out_name->size;
+	if (out_code->size > 8)
+		out_elf->code_entry = sizeof(ELF);
+	if (out_name->size > 8)
+		out_elf->name_entry = out_elf->code_entry + out_code->size;
+	if (out_addr->size > 8)
+		out_elf->addr_entry = out_elf->name_entry + out_name->size;
 
 	char start_find = 0;
 
@@ -234,14 +247,17 @@ int main(int argc, char *argv[]) {
 	FILE *f = fopen(output_path, "wb");
 
 	if (f == NULL) {
-		printf("Файл %s невозможно создать!\n");
+		printf("Файл %s невозможно создать!\n", output_path);
 		return 1;
 	}
 
 	fwrite(out_elf, sizeof(ELF), 1, f);
-	fwrite(out_code, sizeof(Code_sec) + code_size, 1, f);
-	fwrite(out_name, sizeof(Name_sec) + names_count * sizeof(Name_sec_elem), 1, f);
-	fwrite(out_addr, sizeof(Addr_sec) + addrs_count * sizeof(Addr_sec_elem), 1, f);
+	if (out_code->size > 8)
+		fwrite(out_code, sizeof(Code_sec) + code_size, 1, f);
+	if (out_name->size > 8)
+		fwrite(out_name, sizeof(Name_sec) + names_count * sizeof(Name_sec_elem), 1, f);
+	if (out_addr->size > 8)
+		fwrite(out_addr, sizeof(Addr_sec) + addrs_count * sizeof(Addr_sec_elem), 1, f);
 
 	fclose(f);
 
@@ -249,4 +265,9 @@ int main(int argc, char *argv[]) {
 	free(code_data);
 	free(input_path);
 	free(out_elf);
+}
+
+
+void print_help() {
+	printf("Композтор для elf файлов.\n\t-h --help\tвывод этого сообщения.\n\t-o --output\tпуть к итоговому файлу.\n\t-t --offset\tсмещение кода.\n");
 }

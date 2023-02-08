@@ -1,5 +1,5 @@
 CC = gcc -I ./include -c -fsanitize=address -g
-LD = gcc -lasan -g
+LD = gcc -fsanitize=address -g
 
 
 SOURCES = $(wildcard *.c)
