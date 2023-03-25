@@ -12,7 +12,8 @@ OBJECTS = $(SOURCES:.c=.o)
 
 all: $(OBJECTS)
 	$(LD) $^ -o ld
-	./ld main.elf func.elf -o main
+	#./ld main.elf func.elf -o main
+	./ld std_bios.elf -o std_bios
 
 
 clean:

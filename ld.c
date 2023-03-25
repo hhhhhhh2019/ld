@@ -48,12 +48,15 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
+	char ok = 1;
+
 	for (int i = 0; i < input_count; i++) {
 		FILE *f = fopen(argv[input_path[i]], "rb");
 
 		if (f == NULL) {
 			printf("Файл %s не найден!\n", argv[input_path[i]]);
-			return 2;
+			ok = 0;
+			continue;
 		}
 
 
@@ -63,13 +66,15 @@ int main(int argc, char *argv[]) {
 		if (strcmp(elf->magic, "ELF\0\0\0") != 0) {
 			printf("Ошибка чтения заголовка!\n");
 			fclose(f);
-			return 1;
+			ok = 0;
+			continue;
 		}
 
 		if (elf->type != TYPE_STAT) {
 			printf("Файл %s не предназначен для статичного связывания!\n", argv[input_path[i]]);
 			fclose(f);
-			return 1;
+			ok = 0;
+			continue;
 		}
 
 		unsigned long size;
@@ -160,6 +165,8 @@ int main(int argc, char *argv[]) {
 		free(elf);
 	}
 
+	if (ok == 0)
+		return 1;
 
 	#ifdef DEBUG
 	putc('\n', stdout);
@@ -222,12 +229,19 @@ int main(int argc, char *argv[]) {
 	out_elf->version = 1;
 	out_elf->type = TYPE_EXEC;
 	out_elf->entry = 0;
-	if (out_code->size > 8)
-		out_elf->code_entry = sizeof(ELF);
-	if (out_name->size > 8)
-		out_elf->name_entry = out_elf->code_entry + out_code->size;
-	if (out_addr->size > 8)
-		out_elf->addr_entry = out_elf->name_entry + out_name->size;
+	unsigned int offset = sizeof(ELF);
+	if (out_code->size > 8) {
+		out_elf->code_entry = offset;
+		offset += out_code->size;
+	}
+	if (out_name->size > 8) {
+		out_elf->name_entry = offset;
+		offset += out_name->size;
+	}
+	if (out_addr->size > 8) {
+		out_elf->addr_entry = offset;
+		offset += out_addr->size;
+	}
 
 	char start_find = 0;
 
